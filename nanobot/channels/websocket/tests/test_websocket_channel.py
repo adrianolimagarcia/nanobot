@@ -832,6 +832,30 @@ async def test_webui_message_envelope_marks_inbound_metadata(bus: MagicMock) -> 
 
 
 @pytest.mark.asyncio
+async def test_attached_webui_message_skips_redundant_hydration(bus: MagicMock) -> None:
+    channel = _ch(bus)
+    conn = MagicMock()
+    conn.remote_address = ("127.0.0.1", 50123)
+    channel._attach(conn, "chat-1")
+    channel._hydrate_after_subscribe = AsyncMock()
+
+    await channel._dispatch_envelope(
+        conn,
+        "webui-client",
+        {
+            "type": "message",
+            "chat_id": "chat-1",
+            "content": "hello",
+            "webui": True,
+            "turn_id": "turn-1",
+        },
+    )
+
+    channel._hydrate_after_subscribe.assert_not_awaited()
+    bus.publish_inbound.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_trusted_webui_shell_preserves_display_text_and_hides_dispatch_command(
     bus: MagicMock,
 ) -> None:
