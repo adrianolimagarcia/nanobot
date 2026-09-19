@@ -572,8 +572,16 @@ class WebUICommandRouter:
                 **rejection_fields,
             )
             return
+        already_attached = chat_id in self._transport.webui_connection_chats(connection)
         self._transport.webui_attach(connection, chat_id)
-        if temporary_policy is None or temporary_policy.hydrate_transcript:
+        # ``attach`` already hydrates reconnect state. Re-reading it before every
+        # message adds disk work and duplicate lifecycle frames to the hot path.
+        # A message may also be the first frame for a chat, so retain hydration
+        # for that implicit-attach case.
+        if (
+            not already_attached
+            and (temporary_policy is None or temporary_policy.hydrate_transcript)
+        ):
             await self._transport.webui_hydrate(chat_id)
 
         scope = await self.workspace_scope_or_error(
